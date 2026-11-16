@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Night Atlas</title>
+<meta name="description" content="Point your phone at the sky to name the stars, planets and constellations above you.">
+<meta name="theme-color" content="#050a1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Night Atlas">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="sky"></canvas>
+
+<header id="topbar">
+  <div id="brand" aria-label="Night Atlas">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 2l1.8 5.6H20l-5 3.6 1.9 5.8L12 13.4 7.1 17l1.9-5.8-5-3.6h6.2z"/></svg>
+    <span>Night Atlas</span>
+  </div>
+  <div id="clock"></div>
+</header>
+
+<div id="challenge" class="hidden">
+  <div class="ch-label">Tonight's challenge</div>
+  <div class="ch-title">Find Polaris, the North Star</div>
+  <div class="ch-hint" id="chHint">Follow the arrow</div>
+</div>
+
+<div id="arrow" class="hidden" aria-hidden="true">
+  <svg viewBox="0 0 40 40" width="44" height="44"><path d="M20 4 L34 32 L20 25 L6 32 Z" fill="currentColor"/></svg>
+</div>
+
+<div id="reticle" aria-hidden="true">
+  <svg viewBox="0 0 100 100" width="96" height="96">
+    <circle cx="50" cy="50" r="30" class="ret-ring"/>
+    <circle cx="50" cy="50" r="30" class="ret-progress" id="retProgress" pathLength="1"/>
+    <line x1="50" y1="8" x2="50" y2="18"/><line x1="50" y1="82" x2="50" y2="92"/>
+    <line x1="8" y1="50" x2="18" y2="50"/><line x1="82" y1="50" x2="92" y2="50"/>
+  </svg>
+</div>
+
+<footer id="hud">
+  <div id="heading">--</div>
+  <div id="subhud">Point your phone at the sky</div>
+</footer>
+
+<div id="toast" class="hidden"></div>
+
+<div id="info" class="hidden" role="dialog" aria-live="polite">
+  <button class="close" id="infoClose" aria-label="Close">&times;</button>
+  <div class="info-name" id="infoName"></div>
+  <div class="info-con" id="infoCon"></div>
+  <div class="info-stats" id="infoStats"></div>
+  <div class="info-fact" id="infoFact"></div>
+</div>
+
+<section id="intro">
+  <div class="intro-inner">
+    <svg class="intro-logo" viewBox="0 0 120 120" aria-hidden="true">
+      <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" stroke-opacity=".25"/>
+      <polyline points="22,72 42,48 60,58 82,30 98,44" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity=".7"/>
+      <circle cx="22" cy="72" r="3" fill="currentColor"/><circle cx="42" cy="48" r="4" fill="currentColor"/>
+      <circle cx="60" cy="58" r="2.5" fill="currentColor"/><circle cx="82" cy="30" r="5" fill="currentColor"/>
+      <circle cx="98" cy="44" r="3" fill="currentColor"/>
+    </svg>
+    <h1>Night Atlas</h1>
+    <p>Hold your phone up to the sky. Night Atlas names the stars, planets and constellations in front of you.</p>
+    <button id="startBtn">Start stargazing</button>
+    <p class="intro-small">Uses your phone's compass and motion sensors.<br>Location: Alhambra, California</p>
+  </div>
+</section>
+
+<section id="settings" class="hidden" aria-label="Settings">
+  <div class="set-inner">
+    <h2>Settings</h2>
+    <div class="set-debug" id="debug"></div>
+    <div class="set-row">
+      <button id="calBtn">Calibrate on Polaris</button>
+      <button id="calReset" class="secondary">Clear calibration</button>
+    </div>
+    <p class="set-help">Calibrate during rehearsal: aim the back of the phone at the real Polaris (or due north, about a third of the way up the sky), then tap Calibrate.</p>
+    <label class="set-label">Trigger zone <span id="tolVal"></span>
+      <input type="range" id="tol" min="5" max="25" step="1">
+    </label>
+    <label class="set-label">Hold time <span id="dwellVal"></span>
+      <input type="range" id="dwell" min="0.5" max="4" step="0.5">
+    </label>
+    <label class="set-check"><input type="checkbox" id="dragMode"> Touch drag mode (no sensors)</label>
+    <div class="set-row">
+      <button id="testReveal">Test the moment</button>
+      <button id="rearm" class="secondary">Re-arm</button>
+    </div>
+    <button id="setClose" class="secondary wide">Close</button>
+  </div>
+</section>
+
+<section id="reveal" class="hidden" aria-live="assertive">
+  <canvas id="sparkle"></canvas>
+  <div class="reveal-inner">
+    <svg id="cat" viewBox="0 0 200 160" aria-hidden="true">
+      <polyline class="cat-line" pathLength="1" points="50,20 75,55 125,55 150,20 165,85 140,130 100,140 60,130 35,85 50,20"/>
+      <polyline class="cat-whisker w1" pathLength="1" points="86,110 42,100"/>
+      <polyline class="cat-whisker w2" pathLength="1" points="86,116 44,124"/>
+      <polyline class="cat-whisker w3" pathLength="1" points="114,110 158,100"/>
+      <polyline class="cat-whisker w4" pathLength="1" points="114,116 156,124"/>
+      <g class="cat-stars">
+        <circle cx="50" cy="20" r="3"/><circle cx="75" cy="55" r="2"/><circle cx="125" cy="55" r="2"/>
+        <circle cx="150" cy="20" r="3"/><circle cx="165" cy="85" r="2.2"/><circle cx="140" cy="130" r="2"/>
+        <circle cx="100" cy="140" r="2.6"/><circle cx="60" cy="130" r="2"/><circle cx="35" cy="85" r="2.2"/>
+        <circle cx="76" cy="86" r="4" class="eye"/><circle cx="124" cy="86" r="4" class="eye"/>
+        <circle cx="100" cy="108" r="2.5"/>
+      </g>
+    </svg>
+    <h1 id="revealText"></h1>
+  </div>
+</section>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
