@@ -1,6 +1,6 @@
 # Night Atlas
 
-A stargazing web app for iPhone. Point the phone at the sky and it shows about 5,000 real stars, all 88 constellations, the Milky Way, 110 Messier objects, the planets and the Moon for Alhambra, California. When the phone is held on Polaris (the North Star) for a moment, a "Beepo click me" button appears. Tapping it plays the surprise message, which takes 1.5 seconds from start to finish.
+A stargazing web app for iPhone. Point the phone at the sky and it shows about 5,000 real stars, all 88 constellations, the Milky Way, 110 Messier objects, the planets and the Moon for Alhambra, California. When the phone is held on Polaris (the North Star) for a moment, a "Beepo click me" button appears. Tapping it plays the surprise message, which takes 2.5 seconds: the cat draws first, then the words appear.
 
 No Mac or App Store needed. It runs in Safari and can be added to the home screen so it opens like a normal app.
 

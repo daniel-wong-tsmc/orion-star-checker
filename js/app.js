@@ -352,7 +352,7 @@ function render(now) {
       ctx.globalAlpha = 1;
     }
     ctx.fillStyle = s.color;
-    ctx.globalAlpha = s.mag > 4.5 ? 0.55 : s.mag > 3.5 ? 0.8 : 1;
+    ctx.globalAlpha = s.mag > 4.5 ? 0.7 : s.mag > 3.5 ? 0.88 : 1;
     if (r < 1.1) ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
     else { ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill(); }
     ctx.globalAlpha = 1;
@@ -490,7 +490,7 @@ function drawGround() {
     }
   }
   if (poly.length >= 3) {
-    ctx.fillStyle = 'rgba(8,14,22,.9)';
+    ctx.fillStyle = 'rgba(30,55,50,.22)'; // light tint so stars below the horizon stay visible
     ctx.beginPath(); ctx.moveTo(poly[0][0], poly[0][1]);
     for (const pt of poly.slice(1)) ctx.lineTo(pt[0], pt[1]);
     ctx.closePath(); ctx.fill();
@@ -570,7 +570,7 @@ function showPrompt() {
   els.prompt.classList.remove('hidden');
 }
 
-// Step 2: tapping it plays the reveal (1.5 s from start to finish).
+// Step 2: tapping it plays the reveal (2.5 s: the cat first, then the words).
 function reveal() {
   if (revealed) return;
   revealed = true;
@@ -588,7 +588,7 @@ function reveal() {
     for (const ch of word) {
       const sp = document.createElement('span');
       sp.className = 'ch'; sp.textContent = ch;
-      sp.style.animationDelay = `${(0.5 + i++ * 0.035).toFixed(3)}s`;
+      sp.style.animationDelay = `${(1.4 + i++ * 0.044).toFixed(3)}s`;
       wrap.appendChild(sp);
     }
     els.revealText.appendChild(wrap);
@@ -623,7 +623,7 @@ function startSparkles() {
   (function frame(t) {
     if (run !== sparkleRun || els.reveal.classList.contains('hidden')) return;
     sc.clearRect(0, 0, innerWidth, innerHeight);
-    const fade = Math.min(1, (t - t0) / 700);
+    const fade = Math.min(1, (t - t0) / 1000);
     for (const q of parts) {
       q.y += q.vy; if (q.y < -5) q.y = innerHeight + 5;
       const a = fade * (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(q.p + t / 1000 * q.s)));
