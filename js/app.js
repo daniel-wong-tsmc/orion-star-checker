@@ -29,7 +29,7 @@ const canvas = $('sky');
 const ctx = canvas.getContext('2d');
 const els = {
   heading: $('heading'), subhud: $('subhud'), clock: $('clock'),
-  challenge: $('challenge'), chHint: $('chHint'), arrow: $('arrow'),
+  challenge: $('challenge'), chHint: $('chHint'),
   retProgress: $('retProgress'), toast: $('toast'), prompt: $('prompt'),
   info: $('info'), infoName: $('infoName'), infoCon: $('infoCon'), infoStats: $('infoStats'), infoFact: $('infoFact'),
   intro: $('intro'), settings: $('settings'), debug: $('debug'), reveal: $('reveal'), revealText: $('revealText'),
@@ -511,7 +511,7 @@ function drawGround() {
   });
 }
 
-// ---------- HUD, guide arrow and the Polaris trigger ----------
+// ---------- HUD and the Polaris trigger ----------
 const compassName = (az) => ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'][Math.round(az / 22.5) % 16];
 let lockStart = 0, revealed = false, prompted = false, lastHudText = '';
 
@@ -528,23 +528,9 @@ function updateHUD(dist, now) {
 
   if (revealed || prompted) return;
 
-  // Guide arrow toward Polaris.
-  const showGuide = dist > 14;
+  // Text hints toward Polaris.
   els.challenge.classList.toggle('warm', dist < 25);
-  els.chHint.textContent = dist < settings.tol ? 'Hold steady…' : dist < 25 ? 'Almost there' : dist < 60 ? 'Getting closer' : 'Follow the arrow';
-  if (showGuide) {
-    const x = dot(polarisVec, view.right), y = dot(polarisVec, view.up), z = dot(polarisVec, view.fwd);
-    let ang = Math.atan2(-y, x); // screen angle
-    if (z < 0 && Math.hypot(x, y) < 0.05) ang = -Math.PI / 2;
-    const p = project(polarisVec);
-    if (p && onScreen(p, -30)) els.arrow.classList.add('hidden');
-    else {
-      const rx = W / 2 - 46, ry = H / 2 - 180;
-      const cx = W / 2 + Math.cos(ang) * rx, cy = H / 2 + Math.sin(ang) * ry;
-      els.arrow.style.transform = `translate(${cx - 22}px, ${cy - 22}px) rotate(${ang + Math.PI / 2}rad)`;
-      els.arrow.classList.remove('hidden');
-    }
-  } else els.arrow.classList.add('hidden');
+  els.chHint.textContent = dist < settings.tol ? 'Hold steady…' : dist < 25 ? 'Almost there' : dist < 60 ? 'Getting closer' : 'Face north, about a third of the way up';
 
   // Lock-on ring fills while Polaris stays inside the trigger zone.
   if (dist < settings.tol && view.mode !== 'none') {
@@ -563,7 +549,6 @@ function updateHUD(dist, now) {
 function showPrompt() {
   if (prompted || revealed) return;
   prompted = true;
-  els.arrow.classList.add('hidden');
   els.info.classList.add('hidden');
   els.challenge.classList.add('hidden');
   els.retProgress.style.strokeDashoffset = '0';
@@ -576,7 +561,6 @@ function reveal() {
   revealed = true;
   els.prompt.classList.add('hidden');
   document.body.classList.add('revealed');
-  els.arrow.classList.add('hidden');
   els.challenge.classList.add('hidden');
   els.info.classList.add('hidden');
   els.revealText.innerHTML = '';

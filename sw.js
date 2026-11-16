@@ -1,5 +1,5 @@
 // Offline cache so the app still opens with weak signal outdoors.
-const CACHE = 'night-atlas-v3';
+const CACHE = 'night-atlas-v4';
 const FILES = ['./', 'index.html', 'css/style.css', 'js/app.js', 'js/astro.js', 'js/stars.js', 'js/skydata.js',
   'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 self.addEventListener('install', (e) => {

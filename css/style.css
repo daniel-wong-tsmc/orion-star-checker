@@ -60,13 +60,6 @@ html, body {
 .ch-title { font-size: 16px; font-weight: 600; margin-top: 2px; }
 .ch-hint { font-size: 13px; color: var(--accent); margin-top: 3px; }
 
-#arrow {
-  position: fixed; left: 0; top: 0;
-  color: var(--accent);
-  pointer-events: none;
-  filter: drop-shadow(0 0 8px rgba(255,217,138,.6));
-  will-change: transform;
-}
 
 #reticle {
   position: fixed; left: 50%; top: 50%;
@@ -202,7 +195,7 @@ button.wide { width: 100%; margin-top: 14px; }
 #revealText .ch { opacity: 0; display: inline-block; animation: letterIn .25s ease forwards; white-space: pre; }
 
 body.revealed #topbar, body.revealed #hud, body.revealed #reticle,
-body.revealed #arrow, body.revealed #challenge, body.revealed #toast { opacity: 0; transition: opacity 1s; pointer-events: none; }
+body.revealed #challenge, body.revealed #toast { opacity: 0; transition: opacity 1s; pointer-events: none; }
 
 #prompt {
   position: fixed; left: 50%; top: calc(50% + 70px);
