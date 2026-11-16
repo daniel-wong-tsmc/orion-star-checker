@@ -2,7 +2,8 @@ import {
   localSiderealDeg, equatorialToENU, altAz, norm360,
   planetPositions, sunPosition, moonPosition, moonIllumination, DEG, RAD,
 } from './astro.js';
-import { STARS, CONSTELLATIONS, ASTERISMS, fieldStars } from './stars.js';
+import { STARS } from './stars.js';
+import { STARS6, NAMED, CONS, DSO, MILKY } from './skydata.js';
 
 // ---------- Configuration ----------
 const SITE = { name: 'Alhambra, CA', lat: 34.0953, lon: -118.1270 };
@@ -29,7 +30,7 @@ const ctx = canvas.getContext('2d');
 const els = {
   heading: $('heading'), subhud: $('subhud'), clock: $('clock'),
   challenge: $('challenge'), chHint: $('chHint'), arrow: $('arrow'),
-  retProgress: $('retProgress'), toast: $('toast'),
+  retProgress: $('retProgress'), toast: $('toast'), prompt: $('prompt'),
   info: $('info'), infoName: $('infoName'), infoCon: $('infoCon'), infoStats: $('infoStats'), infoFact: $('infoFact'),
   intro: $('intro'), settings: $('settings'), debug: $('debug'), reveal: $('reveal'), revealText: $('revealText'),
 };
@@ -54,7 +55,7 @@ const view = {
   mode: 'none',        // 'sensor' | 'drag'
   right: [1, 0, 0], up: [0, 0, 1], fwd: [0, 1, 0], // true East-North-Up frame
   vfov: VFOV_DEFAULT,
-  dragAz: 0, dragAlt: 34,
+  dragAz: 150, dragAlt: 35,
   azOffset: null,      // maps the device's relative frame to true north
   rawHeading: null, headingAcc: null, lastEvent: 0, absolute: false,
 };
@@ -139,17 +140,70 @@ function onOrientation(e) {
 }
 
 // ---------- Sky objects ----------
-const starList = Object.entries(STARS).map(([id, s]) => ({ id, ...s, kind: 'star' }));
-const field = fieldStars();
 let planets = [], moon = null, sun = null, moonLit = 1, lastSlow = 0;
 
-function bvColor(name) {
-  const warm = ['betelgeuse', 'aldebaran', 'arcturus', 'pollux', 'kochab', 'dubhe', 'mirach', 'schedar', 'enif', 'alhena'];
-  const blue = ['rigel', 'bellatrix', 'spica', 'regulus', 'vega', 'sirius', 'alnilam', 'alnitak', 'mintaka', 'saiph', 'alcyone', 'adhara', 'deneb'];
-  if (warm.includes(name)) return '#ffcf9e';
-  if (blue.includes(name)) return '#cfe0ff';
-  return '#fff8ea';
+// Soft round sprite used to paint the Milky Way.
+const GLOW = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, 'rgba(170,185,240,1)'); r.addColorStop(0.5, 'rgba(160,175,235,.45)'); r.addColorStop(1, 'rgba(150,170,230,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 64, 64);
+  return c;
+})();
+
+const eqVec = (raDeg, dec) => {
+  const a = raDeg * DEG, d = dec * DEG;
+  return [Math.cos(d) * Math.cos(a), Math.cos(d) * Math.sin(a), Math.sin(d)];
+};
+function bvColor(bv) { // star color from its B-V color index
+  if (bv < 0) return '#c9dbff';
+  if (bv < 0.3) return '#e6eeff';
+  if (bv < 0.6) return '#fff8ea';
+  if (bv < 1.0) return '#ffe7c4';
+  if (bv < 1.4) return '#ffd2a1';
+  return '#ffbe8a';
 }
+const CON_NAME = Object.fromEntries(CONS.map((c) => [c.id, c.name]));
+const FACTS = Object.fromEntries(Object.values(STARS).map((s) => [s.name, s]));
+const DSO_KIND = { gc: 'Globular cluster', oc: 'Open cluster', pn: 'Planetary nebula', sfr: 'Nebula', rn: 'Reflection nebula',
+  snr: 'Supernova remnant', pos: 'Star cloud', s: 'Galaxy', e: 'Galaxy', i: 'Galaxy' };
+const SKY = (() => {
+  const stars = [];
+  for (let i = 0; i < STARS6.length; i += 4) {
+    stars.push({ q: eqVec(STARS6[i], STARS6[i + 1]), mag: STARS6[i + 2], color: bvColor(STARS6[i + 3]) });
+  }
+  stars.sort((a, b) => b.mag - a.mag); // faint first, bright drawn on top
+  const named = NAMED.map(([name, ra, dec, mag, con]) => {
+    const extra = FACTS[name] || {};
+    return { kind: 'star', name, ra: ra / 15, dec, mag, q: eqVec(ra, dec), con: CON_NAME[con] || con, ly: extra.ly, fact: extra.fact };
+  });
+  const cons = CONS.map((c) => ({
+    ...c, q: eqVec(c.ra, c.dec),
+    lines: c.lines.map((l) => {
+      const pts = [];
+      for (let i = 0; i + 3 < l.length; i += 2) {
+        const a = eqVec(l[i], l[i + 1]), b = eqVec(l[i + 2], l[i + 3]);
+        for (let k = 0; k < 6; k++) pts.push(normalize(lerpV(a, b, k / 6)));
+      }
+      pts.push(eqVec(l[l.length - 2], l[l.length - 1]));
+      return pts;
+    }),
+  }));
+  const dso = DSO.map(([id, alt, type, ra, dec, mag]) => {
+    const kind = DSO_KIND[type] || 'Deep sky object';
+    const nice = alt.replace(/[´’]/g, "'");
+    return { kind: 'dso', type: kind, name: alt ? `${nice} (${id})` : id, label: alt ? `${id} ${nice}` : id,
+      q: eqVec(ra, dec), mag, color: kind === 'Galaxy' ? 'rgba(255,190,200,.7)' : kind.includes('cluster') ? 'rgba(255,230,160,.7)' : 'rgba(160,230,210,.7)' };
+  });
+  const milky = [];
+  for (let i = 0; i < MILKY.length; i += 3) milky.push({ q: eqVec(MILKY[i], MILKY[i + 1]), lvl: MILKY[i + 2] });
+  const eps = 23.439 * DEG, ecliptic = [];
+  for (let l = 0; l <= 360; l += 3) {
+    const L = l * DEG;
+    ecliptic.push([Math.cos(L), Math.sin(L) * Math.cos(eps), Math.sin(L) * Math.sin(eps)]);
+  }
+  return { stars, named, cons, dso, milky, ecliptic, polaris: eqVec(2.530 * 15, 89.264) };
+})();
 
 // ---------- Rendering ----------
 let W = 0, H = 0, DPR = 1, F = 1;
@@ -217,14 +271,28 @@ function render(now) {
     ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
   }
 
-  // Field stars.
-  for (const s of field) {
-    const p = project(enu(s.ra, s.dec));
-    if (!onScreen(p, 4)) continue;
-    const a = Math.max(0.12, 0.75 - (s.mag - 3.8) * 0.26);
-    ctx.fillStyle = s.tint > 0.8 ? `rgba(255,220,190,${a})` : `rgba(220,230,255,${a})`;
-    ctx.fillRect(p.x, p.y, s.mag < 4.6 ? 1.6 : 1.1, s.mag < 4.6 ? 1.6 : 1.1);
+  // Rotation from equatorial unit vectors to local East/North/Up for this moment.
+  const sL = Math.sin(lst * DEG), cL = Math.cos(lst * DEG);
+  const sP = Math.sin(SITE.lat * DEG), cP = Math.cos(SITE.lat * DEG);
+  const toENU = (q) => {
+    const h = cL * q[0] + sL * q[1];
+    return [-sL * q[0] + cL * q[1], cP * q[2] - sP * h, sP * q[2] + cP * h];
+  };
+  const fwd = view.fwd;
+  const fast = (q) => { // project an equatorial unit vector, or null when out of view
+    const v = toENU(q);
+    return project(v);
+  };
+
+  // Milky Way glow.
+  const mwR = Math.max(4, F * Math.tan(2.6 * DEG));
+  for (const m of SKY.milky) {
+    const p = fast(m.q);
+    if (!onScreen(p, mwR)) continue;
+    ctx.globalAlpha = 0.05 + m.lvl * 0.035;
+    ctx.drawImage(GLOW, p.x - mwR, p.y - mwR, mwR * 2, mwR * 2);
   }
+  ctx.globalAlpha = 1;
 
   // Altitude / azimuth grid.
   ctx.setLineDash([2, 6]);
@@ -246,58 +314,79 @@ function render(now) {
   }
   ctx.setLineDash([]);
 
-  // Star positions this frame.
-  const pos = {};
-  for (const s of starList) pos[s.id] = enu(s.ra, s.dec);
-  polarisVec = pos.polaris;
-  const distPolaris = angleBetween(view.fwd, polarisVec);
+  // Ecliptic, the path of the Sun and planets.
+  ctx.setLineDash([6, 6]);
+  drawPolyline(SKY.ecliptic.map(toENU), 'rgba(255,200,120,.22)', 1);
+  ctx.setLineDash([]);
 
-  // Constellation lines and names.
-  ctx.lineCap = 'round';
-  for (const c of [...CONSTELLATIONS, ...ASTERISMS]) {
-    const isUMi = c.name === 'Ursa Minor';
-    const style = c.lines.length && ASTERISMS.includes(c) ? 'rgba(150,170,230,.22)'
-      : isUMi && distPolaris < 30 ? 'rgba(255,217,138,.55)' : 'rgba(140,175,255,.38)';
-    for (const [a, b] of c.lines) drawPolyline(arc(pos[a], pos[b]), style, 1.2);
-    if (ASTERISMS.includes(c)) continue;
-    const ids = [...new Set(c.lines.flat())];
-    const center = normalize(ids.reduce((acc, id) => add(acc, pos[id]), [0, 0, 0]));
+  polarisVec = toENU(SKY.polaris);
+  const distPolaris = angleBetween(fwd, polarisVec);
+
+  // All 88 constellations.
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.textAlign = 'center';
+  for (const c of SKY.cons) {
+    const hot = c.id === 'UMi' && distPolaris < 30;
+    for (const line of c.lines) drawPolyline(line.map(toENU), hot ? 'rgba(255,217,138,.6)' : 'rgba(140,175,255,.34)', 1.1);
+    const center = toENU(c.q);
     const p = project(center);
-    if (onScreen(p, 0) && center[2] > -0.05) {
-      ctx.font = '600 11px -apple-system, system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(160,190,255,.62)';
-      ctx.fillText(c.name.toUpperCase(), p.x, p.y + 26);
+    if (onScreen(p, 0)) {
+      ctx.font = `600 ${c.rank === 1 ? 11 : 10}px -apple-system, system-ui, sans-serif`;
+      ctx.fillStyle = hot ? 'rgba(255,217,138,.8)' : 'rgba(160,190,255,.58)';
+      ctx.fillText(c.name.toUpperCase(), p.x, p.y);
     }
+  }
+
+  // Every star brighter than magnitude 6.
+  for (const s of SKY.stars) {
+    const v = toENU(s.q);
+    if (dot(v, fwd) < 0.3) continue;
+    const p = project(v);
+    if (!onScreen(p, 6)) continue;
+    const r = starRadius(s.mag);
+    if (s.mag < 1.5) {
+      const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 4.5);
+      glow.addColorStop(0, s.color); glow.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.globalAlpha = 0.35; ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r * 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.fillStyle = s.color;
+    ctx.globalAlpha = s.mag > 4.5 ? 0.55 : s.mag > 3.5 ? 0.8 : 1;
+    if (r < 1.1) ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
+    else { ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill(); }
+    ctx.globalAlpha = 1;
   }
 
   tapTargets = [];
 
-  // Named stars.
-  for (const s of starList) {
-    const p = project(pos[s.id]);
+  // Messier objects: nebulae, clusters and galaxies.
+  ctx.textAlign = 'left';
+  for (const d of SKY.dso) {
+    const p = fast(d.q);
     if (!onScreen(p, 10)) continue;
-    let r = starRadius(s.mag);
-    const color = bvColor(s.id);
-    if (s.id === 'alcyone') { drawPleiades(p); }
-    else {
-      if (s.mag < 1.6) {
-        const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 4.5);
-        glow.addColorStop(0, color); glow.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.globalAlpha = 0.35; ctx.fillStyle = glow;
-        ctx.beginPath(); ctx.arc(p.x, p.y, r * 4.5, 0, Math.PI * 2); ctx.fill();
-        ctx.globalAlpha = 1;
-      }
-      if (s.id === 'polaris') r = drawPolaris(p, r, distPolaris, now);
-      ctx.fillStyle = color;
-      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
-    }
-    const labelled = s.mag < 2.3 || s.id === 'polaris' || s.id === 'alcyone' || s.id === 'mizar' || s.id === 'albireo';
-    if (labelled) {
-      ctx.font = s.id === 'polaris' ? '600 14px -apple-system, system-ui, sans-serif' : '12px -apple-system, system-ui, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillStyle = s.id === 'polaris' ? '#ffe2a0' : 'rgba(232,238,252,.78)';
-      ctx.fillText(s.id === 'polaris' ? 'Polaris  ·  North Star' : s.name, p.x + r + 6, p.y + 4);
+    ctx.strokeStyle = d.color; ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (d.kind === 'Galaxy') ctx.ellipse(p.x, p.y, 6, 3, -0.5, 0, Math.PI * 2);
+    else ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.font = '10px -apple-system, system-ui, sans-serif';
+    ctx.fillStyle = d.color;
+    ctx.fillText(d.label, p.x + 8, p.y + 3);
+    tapTargets.push({ x: p.x, y: p.y, obj: d });
+  }
+
+  // Polaris, then names for the brighter stars.
+  const pp = project(polarisVec);
+  if (onScreen(pp, 60)) drawPolaris(pp, starRadius(1.98), distPolaris, now);
+  for (const s of SKY.named) {
+    const p = fast(s.q);
+    if (!onScreen(p, 10)) continue;
+    const isPolaris = s.name === 'Polaris';
+    if (s.mag < 3.3 || isPolaris || view.vfov < 45) {
+      ctx.font = isPolaris ? '600 14px -apple-system, system-ui, sans-serif' : `${s.mag < 2 ? 12 : 10.5}px -apple-system, system-ui, sans-serif`;
+      ctx.fillStyle = isPolaris ? '#ffe2a0' : s.mag < 2 ? 'rgba(232,238,252,.85)' : 'rgba(232,238,252,.6)';
+      ctx.fillText(isPolaris ? 'Polaris  ·  North Star' : s.name, p.x + starRadius(s.mag) + 5, p.y + 4);
     }
     tapTargets.push({ x: p.x, y: p.y, obj: s });
   }
@@ -337,12 +426,6 @@ function render(now) {
   drawGround();
   updateHUD(distPolaris, now);
   requestAnimationFrame(render);
-}
-
-function drawPleiades(p) {
-  const pts = [[0, 0], [-6, -3], [-3, -7], [4, -4], [7, 1], [-2, 5], [3, 6]];
-  ctx.fillStyle = '#dbe7ff';
-  for (const [dx, dy] of pts) { ctx.beginPath(); ctx.arc(p.x + dx, p.y + dy, 1.3, 0, Math.PI * 2); ctx.fill(); }
 }
 
 function drawPolaris(p, r, dist, now) {
@@ -430,7 +513,7 @@ function drawGround() {
 
 // ---------- HUD, guide arrow and the Polaris trigger ----------
 const compassName = (az) => ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'][Math.round(az / 22.5) % 16];
-let lockStart = 0, revealed = false, lastHudText = '';
+let lockStart = 0, revealed = false, prompted = false, lastHudText = '';
 
 function updateHUD(dist, now) {
   const { az, alt } = altAz(view.fwd);
@@ -443,7 +526,7 @@ function updateHUD(dist, now) {
   for (const t of tapTargets) { const d = Math.hypot(t.x - W / 2, t.y - H / 2); if (d < bestD) { bestD = d; best = t; } }
   els.subhud.textContent = best && bestD < 60 ? `${best.obj.name}${best.obj.con ? ' in ' + best.obj.con : ''}` : (alt < 0 ? 'Below the horizon' : 'Point your phone at the sky');
 
-  if (revealed) return;
+  if (revealed || prompted) return;
 
   // Guide arrow toward Polaris.
   const showGuide = dist > 14;
@@ -456,7 +539,7 @@ function updateHUD(dist, now) {
     const p = project(polarisVec);
     if (p && onScreen(p, -30)) els.arrow.classList.add('hidden');
     else {
-      const rx = W / 2 - 46, ry = H / 2 - 130;
+      const rx = W / 2 - 46, ry = H / 2 - 180;
       const cx = W / 2 + Math.cos(ang) * rx, cy = H / 2 + Math.sin(ang) * ry;
       els.arrow.style.transform = `translate(${cx - 22}px, ${cy - 22}px) rotate(${ang + Math.PI / 2}rad)`;
       els.arrow.classList.remove('hidden');
@@ -468,7 +551,7 @@ function updateHUD(dist, now) {
     if (!lockStart) lockStart = now;
     const prog = Math.min(1, (now - lockStart) / (settings.dwell * 1000));
     els.retProgress.style.strokeDashoffset = String(1 - prog);
-    if (prog >= 1) triggerReveal();
+    if (prog >= 1) showPrompt();
   } else {
     lockStart = 0;
     els.retProgress.style.strokeDashoffset = '1';
@@ -476,45 +559,52 @@ function updateHUD(dist, now) {
 }
 
 // ---------- The moment ----------
-function triggerReveal() {
+// Step 1: holding the phone on Polaris shows the "Beepo click me" button.
+function showPrompt() {
+  if (prompted || revealed) return;
+  prompted = true;
+  els.arrow.classList.add('hidden');
+  els.info.classList.add('hidden');
+  els.challenge.classList.add('hidden');
+  els.retProgress.style.strokeDashoffset = '0';
+  els.prompt.classList.remove('hidden');
+}
+
+// Step 2: tapping it plays the reveal (1.5 s from start to finish).
+function reveal() {
   if (revealed) return;
   revealed = true;
+  els.prompt.classList.add('hidden');
   document.body.classList.add('revealed');
   els.arrow.classList.add('hidden');
   els.challenge.classList.add('hidden');
   els.info.classList.add('hidden');
-  const start = performance.now();
-  (function flash(t) {
-    polarisFlash = Math.min(1, (t - start) / 900);
-    if (polarisFlash < 1) requestAnimationFrame(flash);
-  })(start);
-  setTimeout(() => {
-    els.revealText.innerHTML = '';
-    let i = 0;
-    MESSAGE.split(' ').forEach((word, w) => {
-      if (w) els.revealText.appendChild(document.createTextNode(' '));
-      const wrap = document.createElement('span');
-      wrap.className = 'word';
-      for (const ch of word) {
-        const s = document.createElement('span');
-        s.className = 'ch'; s.textContent = ch;
-        s.style.animationDelay = `${5.2 + i++ * 0.09}s`;
-        wrap.appendChild(s);
-      }
-      els.revealText.appendChild(wrap);
-    });
-    els.revealText.setAttribute('aria-label', MESSAGE);
-    // Restart CSS animations.
-    els.reveal.classList.add('hidden'); void els.reveal.offsetWidth;
-    els.reveal.classList.remove('hidden');
-    startSparkles();
-  }, 700);
+  els.revealText.innerHTML = '';
+  let i = 0;
+  MESSAGE.split(' ').forEach((word, w) => {
+    if (w) els.revealText.appendChild(document.createTextNode(' '));
+    const wrap = document.createElement('span');
+    wrap.className = 'word';
+    for (const ch of word) {
+      const sp = document.createElement('span');
+      sp.className = 'ch'; sp.textContent = ch;
+      sp.style.animationDelay = `${(0.5 + i++ * 0.035).toFixed(3)}s`;
+      wrap.appendChild(sp);
+    }
+    els.revealText.appendChild(wrap);
+  });
+  els.revealText.setAttribute('aria-label', MESSAGE);
+  // Restart CSS animations.
+  els.reveal.classList.add('hidden'); void els.reveal.offsetWidth;
+  els.reveal.classList.remove('hidden');
+  startSparkles();
 }
 
 function rearm() {
-  revealed = false; polarisFlash = 0; lockStart = 0;
+  revealed = false; prompted = false; polarisFlash = 0; lockStart = 0;
   document.body.classList.remove('revealed');
   els.reveal.classList.add('hidden');
+  els.prompt.classList.add('hidden');
   els.challenge.classList.remove('hidden');
 }
 
@@ -533,7 +623,7 @@ function startSparkles() {
   (function frame(t) {
     if (run !== sparkleRun || els.reveal.classList.contains('hidden')) return;
     sc.clearRect(0, 0, innerWidth, innerHeight);
-    const fade = Math.min(1, (t - t0) / 2500);
+    const fade = Math.min(1, (t - t0) / 700);
     for (const q of parts) {
       q.y += q.vy; if (q.y < -5) q.y = innerHeight + 5;
       const a = fade * (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(q.p + t / 1000 * q.s)));
@@ -547,7 +637,7 @@ function startSparkles() {
 // ---------- Info card ----------
 function showInfo(o) {
   els.infoName.textContent = o.name;
-  els.infoCon.textContent = o.kind === 'planet' ? 'Planet' : o.kind === 'moon' ? `${Math.round(moonLit * 100)}% lit` : (o.con || '');
+  els.infoCon.textContent = o.kind === 'planet' ? 'Planet' : o.kind === 'moon' ? `${Math.round(moonLit * 100)}% lit` : o.kind === 'dso' ? o.type : (o.con || '');
   const stats = [];
   if (o.kind === 'star') {
     stats.push(['Brightness', `mag ${o.mag.toFixed(1)}`]);
@@ -555,7 +645,10 @@ function showInfo(o) {
   } else if (o.kind === 'planet') {
     stats.push(['Distance', `${o.distAU.toFixed(2)} AU`]);
   }
-  const v = o.kind === 'star' ? equatorialToENU(o.ra, o.dec, localSiderealDeg(new Date(), SITE.lon), SITE.lat) : null;
+  if (o.kind === 'dso' && o.mag < 9) stats.push(['Brightness', `mag ${o.mag.toFixed(1)}`]);
+  const lstNow = localSiderealDeg(new Date(), SITE.lon);
+  const v = o.kind === 'star' ? equatorialToENU(o.ra, o.dec, lstNow, SITE.lat)
+    : o.kind === 'dso' ? equatorialToENU(Math.atan2(o.q[1], o.q[0]) * RAD / 15, Math.asin(o.q[2]) * RAD, lstNow, SITE.lat) : null;
   const alt = v ? altAz(v).alt : o.alt;
   if (alt != null) stats.push(['Altitude', `${Math.round(alt)}°`]);
   els.infoStats.innerHTML = stats.map(([k, val]) => `<div>${k}<b>${val}</b></div>`).join('');
@@ -621,7 +714,7 @@ function handleTap(x, y) {
 (function hiddenControls() {
   const brand = $('brand');
   let timer = null;
-  const startPress = (e) => { e.preventDefault(); timer = setTimeout(() => { timer = null; triggerReveal(); }, 1500); };
+  const startPress = (e) => { e.preventDefault(); timer = setTimeout(() => { timer = null; showPrompt(); }, 1500); };
   const endPress = () => { if (timer) clearTimeout(timer); timer = null; };
   brand.addEventListener('touchstart', startPress, { passive: false });
   brand.addEventListener('touchend', endPress);
@@ -685,7 +778,8 @@ $('calBtn').addEventListener('click', () => {
   toast('Calibrated on Polaris');
 });
 $('calReset').addEventListener('click', () => { settings.calAz = 0; settings.calAlt = 0; store.set('calAz', 0); store.set('calAlt', 0); toast('Calibration cleared'); });
-$('testReveal').addEventListener('click', () => { els.settings.classList.add('hidden'); rearm(); triggerReveal(); });
+$('testReveal').addEventListener('click', () => { els.settings.classList.add('hidden'); rearm(); showPrompt(); });
+els.prompt.addEventListener('click', reveal);
 $('rearm').addEventListener('click', () => { rearm(); toast('Ready. Point at Polaris.'); });
 
 let toastTimer = null;
@@ -747,6 +841,6 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 }
 
 // Test hooks (used by automated checks only).
-window.__nightAtlas = { view, settings, triggerReveal, rearm, setMode, onOrientation };
+window.__nightAtlas = { view, settings, showPrompt, reveal, rearm, setMode, onOrientation };
 
 requestAnimationFrame(render);

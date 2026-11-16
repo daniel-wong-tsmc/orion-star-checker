@@ -166,7 +166,7 @@ button.wide { width: 100%; margin-top: 14px; }
   background:
     radial-gradient(circle at 50% 40%, rgba(255,214,140,.22) 0%, rgba(255,214,140,0) 45%),
     rgba(4,8,20,.97);
-  animation: fadeIn 1.6s ease both;
+  animation: fadeIn .25s ease both;
   padding: 16px;
 }
 #sparkle { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -176,17 +176,17 @@ button.wide { width: 100%; margin-top: 14px; }
   fill: none; stroke: rgba(255,226,160,.75); stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round;
   stroke-dasharray: 1; stroke-dashoffset: 1;
 }
-.cat-line { animation: draw 3.2s ease-in-out 1.2s forwards; }
-.cat-whisker { stroke-width: 1; stroke: rgba(255,226,160,.5); animation: draw .8s ease-out forwards; }
-.w1 { animation-delay: 4.2s; } .w2 { animation-delay: 4.4s; } .w3 { animation-delay: 4.6s; } .w4 { animation-delay: 4.8s; }
-.cat-stars circle { fill: #fff7e0; opacity: 0; animation: twinkleIn .6s ease forwards; filter: drop-shadow(0 0 4px #ffd98a); }
-.cat-stars circle:nth-child(1) { animation-delay: 1.2s; } .cat-stars circle:nth-child(2) { animation-delay: 1.5s; }
-.cat-stars circle:nth-child(3) { animation-delay: 1.8s; } .cat-stars circle:nth-child(4) { animation-delay: 2.1s; }
-.cat-stars circle:nth-child(5) { animation-delay: 2.4s; } .cat-stars circle:nth-child(6) { animation-delay: 2.7s; }
-.cat-stars circle:nth-child(7) { animation-delay: 3.0s; } .cat-stars circle:nth-child(8) { animation-delay: 3.3s; }
-.cat-stars circle:nth-child(9) { animation-delay: 3.6s; }
-.cat-stars .eye { animation-delay: 4.0s; fill: #ffe9a8; }
-.cat-stars circle:nth-child(12) { animation-delay: 4.1s; }
+.cat-line { animation: draw .8s ease-in-out .1s forwards; }
+.cat-whisker { stroke-width: 1; stroke: rgba(255,226,160,.5); animation: draw .25s ease-out forwards; }
+.w1 { animation-delay: .85s; } .w2 { animation-delay: .9s; } .w3 { animation-delay: .95s; } .w4 { animation-delay: 1s; }
+.cat-stars circle { fill: #fff7e0; opacity: 0; animation: twinkleIn .3s ease forwards; filter: drop-shadow(0 0 4px #ffd98a); }
+.cat-stars circle:nth-child(1) { animation-delay: 0.10s; } .cat-stars circle:nth-child(2) { animation-delay: 0.17s; }
+.cat-stars circle:nth-child(3) { animation-delay: 0.24s; } .cat-stars circle:nth-child(4) { animation-delay: 0.31s; }
+.cat-stars circle:nth-child(5) { animation-delay: 0.38s; } .cat-stars circle:nth-child(6) { animation-delay: 0.45s; }
+.cat-stars circle:nth-child(7) { animation-delay: 0.52s; } .cat-stars circle:nth-child(8) { animation-delay: 0.59s; }
+.cat-stars circle:nth-child(9) { animation-delay: 0.66s; }
+.cat-stars .eye { animation-delay: .75s; fill: #ffe9a8; }
+.cat-stars circle:nth-child(12) { animation-delay: .8s; }
 #revealText {
   margin: 22px 0 0;
   font-size: clamp(26px, 8.4vw, 46px);
@@ -198,11 +198,25 @@ button.wide { width: 100%; margin-top: 14px; }
   overflow-wrap: anywhere;
 }
 #revealText .word { display: inline-block; white-space: nowrap; }
-#revealText .ch { opacity: 0; display: inline-block; animation: letterIn .5s ease forwards; white-space: pre; }
+#revealText .ch { opacity: 0; display: inline-block; animation: letterIn .3s ease forwards; white-space: pre; }
 
 body.revealed #topbar, body.revealed #hud, body.revealed #reticle,
 body.revealed #arrow, body.revealed #challenge, body.revealed #toast { opacity: 0; transition: opacity 1s; pointer-events: none; }
 
+#prompt {
+  position: fixed; left: 50%; top: calc(50% + 70px);
+  transform: translateX(-50%);
+  padding: 15px 30px; font-size: 19px;
+  box-shadow: 0 0 0 0 rgba(255,217,138,.7), 0 0 28px rgba(255,217,138,.55);
+  animation: promptIn .35s ease-out both, pulse 1.6s ease-out .35s infinite;
+  white-space: nowrap;
+}
+
+@keyframes promptIn { from { opacity: 0; transform: translateX(-50%) scale(.6); } to { opacity: 1; transform: translateX(-50%) scale(1); } }
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255,217,138,.6), 0 0 28px rgba(255,217,138,.55); }
+  100% { box-shadow: 0 0 0 22px rgba(255,217,138,0), 0 0 28px rgba(255,217,138,.55); }
+}
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @keyframes twinkleIn { 0% { opacity: 0; transform: scale(.2); } 60% { opacity: 1; transform: scale(1.6); } 100% { opacity: 1; transform: scale(1); } }

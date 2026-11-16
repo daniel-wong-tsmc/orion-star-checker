@@ -1,4 +1,5 @@
-// Bright stars (J2000). ra in hours, dec in degrees, mag = visual magnitude,
+// Facts and distances for well known stars, shown on the info card.
+// Positions come from skydata.js. J2000 values kept here for reference. ra in hours, dec in degrees, mag = visual magnitude,
 // ly = approximate distance in light years.
 export const STARS = {
   // Ursa Minor
@@ -107,44 +108,3 @@ export const STARS = {
   hamal:     { name: 'Hamal', con: 'Aries', ra: 2.120, dec: 23.462, mag: 2.01, ly: 66 },
   sheratan:  { name: 'Sheratan', con: 'Aries', ra: 1.911, dec: 20.808, mag: 2.64, ly: 59 },
 };
-
-export const CONSTELLATIONS = [
-  { name: 'Ursa Minor', note: 'The Little Dipper', lines: [['polaris','yildun'],['yildun','epsUMi'],['epsUMi','zetUMi'],['zetUMi','kochab'],['kochab','pherkad'],['pherkad','etaUMi'],['etaUMi','zetUMi']] },
-  { name: 'Ursa Major', note: 'The Big Dipper', lines: [['alkaid','mizar'],['mizar','alioth'],['alioth','megrez'],['megrez','dubhe'],['dubhe','merak'],['merak','phecda'],['phecda','megrez']] },
-  { name: 'Cassiopeia', note: 'The Queen', lines: [['caph','schedar'],['schedar','gamCas'],['gamCas','ruchbah'],['ruchbah','segin']] },
-  { name: 'Cepheus', note: 'The King', lines: [['alderamin','alfirk'],['alfirk','errai'],['errai','iotCep'],['iotCep','alderamin'],['alderamin','zetCep'],['zetCep','iotCep']] },
-  { name: 'Orion', note: 'The Hunter', lines: [['betelgeuse','meissa'],['meissa','bellatrix'],['betelgeuse','alnitak'],['bellatrix','mintaka'],['mintaka','alnilam'],['alnilam','alnitak'],['alnitak','saiph'],['mintaka','rigel'],['betelgeuse','bellatrix']] },
-  { name: 'Taurus', note: 'The Bull', lines: [['zetTau','aldebaran'],['aldebaran','theTau'],['theTau','gamTau'],['gamTau','delTau'],['delTau','epsTau'],['epsTau','elnath']] },
-  { name: 'Gemini', note: 'The Twins', lines: [['castor','pollux'],['castor','mebsuta'],['mebsuta','tejat'],['pollux','wasat'],['wasat','alhena']] },
-  { name: 'Canis Major', note: 'The Great Dog', lines: [['mirzam','sirius'],['sirius','wezen'],['wezen','adhara'],['wezen','aludra']] },
-  { name: 'Canis Minor', note: 'The Little Dog', lines: [['procyon','gomeisa']] },
-  { name: 'Auriga', note: 'The Charioteer', lines: [['capella','menkalinan'],['menkalinan','theAur'],['theAur','elnath'],['elnath','hassaleh'],['hassaleh','almaaz'],['almaaz','capella']] },
-  { name: 'Perseus', note: 'The Hero', lines: [['gamPer','mirfak'],['mirfak','delPer'],['delPer','epsPer'],['epsPer','zetPer'],['mirfak','algol']] },
-  { name: 'Pegasus', note: 'The Winged Horse', lines: [['markab','scheat'],['scheat','alpheratz'],['alpheratz','algenib'],['algenib','markab'],['markab','homam'],['homam','enif']] },
-  { name: 'Andromeda', note: 'The Princess', lines: [['alpheratz','mirach'],['mirach','almach']] },
-  { name: 'Cygnus', note: 'The Swan', lines: [['deneb','sadr'],['sadr','albireo'],['delCyg','sadr'],['sadr','gienah']] },
-  { name: 'Leo', note: 'The Lion', lines: [['regulus','etaLeo'],['etaLeo','algieba'],['algieba','zosma'],['zosma','denebola'],['denebola','chertan'],['chertan','regulus']] },
-  { name: 'Aries', note: 'The Ram', lines: [['hamal','sheratan']] },
-];
-
-// The Summer Triangle shows as an asterism in early winter evenings.
-export const ASTERISMS = [
-  { name: 'Summer Triangle', lines: [['vega','deneb'],['deneb','altair'],['altair','vega']] },
-];
-
-// Decorative faint background stars, fixed on the sky so they move with it.
-export function fieldStars(count = 700) {
-  let seed = 20261225;
-  const rand = () => {
-    seed = (seed * 1664525 + 1013904223) >>> 0;
-    return seed / 4294967296;
-  };
-  const out = [];
-  for (let i = 0; i < count; i++) {
-    const ra = rand() * 24;
-    const dec = Math.asin(rand() * 2 - 1) * 180 / Math.PI;
-    const mag = 3.8 + Math.pow(rand(), 0.6) * 2.4;
-    out.push({ ra, dec, mag, tint: rand() });
-  }
-  return out;
-}
